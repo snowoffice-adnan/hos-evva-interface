@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+.idea
+.DS_Store
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+.vscode
+coverage
+tmp
+*.local.*
+.env
+.env.*

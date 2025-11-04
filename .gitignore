@@ -3,6 +3,7 @@
 /node_modules
 /build
 /tmp
+/.idea
 
 # Logs
 logs
@@ -14,10 +15,11 @@ yarn-error.log*
 lerna-debug.log*
 
 # dotenv environment variable files
-.env
-.env.development
-.env.test
-.env.production
+.env*
+clients/snowoffice/certs/*
+!clients/snowoffice/certs/.gitkeep
+*.pem
+*.key
 
 # temp directory
 .temp
