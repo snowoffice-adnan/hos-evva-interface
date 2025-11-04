@@ -2,13 +2,12 @@ name: Build & Push Image
 
 on:
   push:
-    branches: [ main, feat/single-instance ]
+    branches: [ main ]
     tags: [ 'v*.*.*' ]
   workflow_dispatch: {}
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/snowoffice/hos-evva-interface
 
 jobs:
   build-and-push:
@@ -23,6 +22,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Compute lowercase owner and expose as an output for later steps
+      - name: Compute image name
+        id: vars
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/hos-evva-interface" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -41,7 +45,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ steps.vars.outputs.image }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
