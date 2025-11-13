@@ -2,19 +2,24 @@ version: "3.9"
 
 services:
   evva-interface:
-    image: ghcr.io/${GHCR_OWNER:-snowoffice-adnan}/hos-evva-interface:${IMAGE_TAG:-latest}
-    pull_policy: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: evva-interface:latest
 
+    # Map container port -> host port
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
 
-    # Per-tenant env file (e.g., /srv/evva/clients/acme/compose.env)
+    # Load environment from external file (e.g. .env.evva)
     env_file:
       - ${ENV_FILE}
 
+    # Mount certs into the container at /run/certs (read-only)
     volumes:
       - ${CERTS_DIR}:/run/certs:ro
 
+    # Security hardening
     read_only: true
     tmpfs:
       - /tmp
@@ -22,10 +27,14 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${PORT:-3000}/${API_PREFIX:-api/v1}/integrations/evva/xs3/reader-state >/dev/null 2>&1 || exit 1"]
+      test: [
+        "CMD-SHELL",
+        "wget -qO- http://127.0.0.1:${PORT:-3000}/${API_PREFIX:-api/v1}/integrations/evva/xs3/reader-state >/dev/null 2>&1 || exit 1"
+      ]
       interval: 30s
       timeout: 3s
       start_period: 30s

@@ -1,9 +1,7 @@
 import { IsISO8601, IsOptional, IsUUID } from 'class-validator';
-import { EmptyToUndefined } from "../../common/decorators/empty-to-undefined.decorator";
 
 export class ProgramDto {
   @IsOptional()
-  @EmptyToUndefined()
   @IsUUID('4', { message: 'mediumId must be a UUID v4' })
   mediumId?: string;
 

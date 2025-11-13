@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
-export class Xs3StateService {
+export class StateService {
   private hwHex: string | null = null;
   private hwB64: string | null = null;
   private currentMediumId: string | null = null;

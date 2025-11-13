@@ -1,9 +1,9 @@
-# Nestjs specific
+# ─────────────────────────────────────────────
+# Build output / dependencies
+# ─────────────────────────────────────────────
 /dist
 /node_modules
 /build
-/tmp
-/.idea
 
 # Logs
 logs
@@ -14,13 +14,61 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# dotenv environment variable files
-.env*
-clients/snowoffice/certs/*
-!clients/snowoffice/certs/.gitkeep
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ─────────────────────────────────────────────
+# Environment variables
+# ─────────────────────────────────────────────
+
+# Default NestJS local env
+.env
+
+# Docker-specific env (your custom file)
+.env.evva
+
+# Ignore any other env variations
+.env.*
+!.env.example        # allow template
+
+# ─────────────────────────────────────────────
+# Certificates / private keys
+# ─────────────────────────────────────────────
 *.pem
 *.key
 
-# temp directory
+# But allow example certificates (optional)
+!certs/*.example.pem
+
+# ─────────────────────────────────────────────
+# Temporary data / misc
+# ─────────────────────────────────────────────
 .temp
 .tmp
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

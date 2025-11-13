@@ -1,19 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ClientModule } from '@evva/nest-xs3-api-client';
-import { Xs3Module } from './xs3/xs3.module';
-import configuration from './config/configuration';
-import validationSchema from './config/validation';
+import { MqttModule } from './mqtt/mqtt.module';
+import { EvvaModule } from './evva/evva.module';
+import evvaConfig from './config/evva.config';
 
 @Module({
-    imports: [
-        ConfigModule.forRoot({
-            isGlobal: true,
-            load: [configuration],
-            validationSchema,
-        }),
-        ClientModule,
-        Xs3Module,
-    ],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [evvaConfig],
+    }),
+    MqttModule,
+    EvvaModule,
+  ],
 })
 export class AppModule {}

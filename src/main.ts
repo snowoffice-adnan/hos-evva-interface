@@ -1,30 +1,34 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { json, urlencoded } from 'express';
-import {SuccessResponseInterceptor} from "./common/success-response.interceptor";
-import {AllExceptionsFilter} from "./common/all-exceptions.filter";
+import { AllExceptionsFilter } from './common/http-exception.filter';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
 
-    app.setGlobalPrefix(process.env.API_PREFIX ?? 'api/v1');
-    app.enableCors();
-    app.use(json({ limit: '5mb' }));
-    app.use(urlencoded({ extended: true, limit: '5mb' }));
+  const prefix = config.get<string>('API_PREFIX', 'api/v1');
+  const port = Number(config.get<string>('PORT', '3000'));
 
-    app.useGlobalPipes(
-        new ValidationPipe({
-            whitelist: true,
-            forbidNonWhitelisted: true,
-            transform: true,
-        }),
-    );
+  app.setGlobalPrefix(prefix);
+  app.enableCors();
+  app.use(json({ limit: '5mb' }));
+  app.use(urlencoded({ extended: true, limit: '5mb' }));
 
-    app.useGlobalInterceptors(new SuccessResponseInterceptor());
-    app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-    await app.listen(Number(process.env.PORT ?? 3000), '0.0.0.0');
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  await app.listen(port);
+  logger.log(`🚀 EVVA API is running on http://localhost:${port}/${prefix}`);
 }
-
 bootstrap();
