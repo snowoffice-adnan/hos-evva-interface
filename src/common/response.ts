@@ -1,15 +1,20 @@
-export function ok(message: string, response: any) {
-  const base = {
+export function ok(
+  message: string,
+  response: any,
+  options?: { unwrapSingle?: boolean },
+) {
+  const unwrapSingle = options?.unwrapSingle ?? true;
+
+  const base: any = {
     error: false,
     message,
     statusCode: 200,
-  } as any;
+  };
 
   if (response && typeof response === 'object' && 'data' in response) {
     Object.assign(base, response);
 
-    // If base.data is an array with 1 element → unwrap
-    if (Array.isArray(base.data) && base.data.length === 1) {
+    if (unwrapSingle && Array.isArray(base.data) && base.data.length === 1) {
       base.data = base.data[0];
     }
 
@@ -18,7 +23,7 @@ export function ok(message: string, response: any) {
 
   base.data = response;
 
-  if (Array.isArray(base.data) && base.data.length === 1) {
+  if (unwrapSingle && Array.isArray(base.data) && base.data.length === 1) {
     base.data = base.data[0];
   }
 

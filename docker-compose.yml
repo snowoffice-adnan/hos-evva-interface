@@ -9,7 +9,7 @@ services:
 
     # Map container port -> host port
     ports:
-      - "3000:3000"
+      - "3100:3000"
 
     # Load environment from external file (e.g. .env.evva)
     env_file:

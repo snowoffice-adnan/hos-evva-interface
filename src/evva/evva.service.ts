@@ -17,6 +17,15 @@ import { EvvaQueryService } from './evva-query.service';
 import { EvvaAccessService } from './evva-access.service';
 import { EvvaSmartphoneService } from './evva-smartphone.service';
 
+type ReaderEvent = {
+  t?: string;
+  e?: string;
+  oid?: string;
+  iod?: string;
+  atr?: string;
+  [k: string]: unknown;
+};
+
 @Injectable()
 export class EvvaService implements OnModuleInit {
   private readonly logger = new Logger(EvvaService.name);
@@ -79,7 +88,7 @@ export class EvvaService implements OnModuleInit {
         }
       }
 
-      // --- Query debug logs (optional, kept like before) ---
+      // --- Query debug logs ---
       if (/^xs3\/1\/[^/]+\/q$/.test(topic)) {
         try {
           const res = JSON.parse(s);
@@ -96,37 +105,56 @@ export class EvvaService implements OnModuleInit {
 
       // --- Reader events → StateService ---
       if (/^readers\/1\/.+$/.test(topic)) {
-        let msg: any;
-        try {
-          msg = JSON.parse(s);
-        } catch {
-          msg = undefined;
-        }
+        const msg = this.coerceJson<ReaderEvent>(payload);
 
-        // Example key event: { t: 'ky', e: 'on', iod: 'AFFE', oid: '...' }
-        if (msg && msg.t === 'ky' && msg.e === 'on' && msg.iod === 'AFFE') {
-          this.state.setAffeError();
-        }
+        if (!msg) return;
 
-        // Hardware derivation from oid
-        if (msg && typeof msg.oid === 'string' && msg.oid.length > 0) {
-          try {
-            const oidBuf = Buffer.from(msg.oid + '00', 'hex');
-            const hwHex = createHash('sha256').update(oidBuf).digest('hex');
-            const hwB64 = createHash('sha256').update(oidBuf).digest('base64');
-            this.state.setHardwareKey(hwHex, hwB64);
+        if (msg.t === 'ky' && msg.e === 'on') {
+          const isAffe = msg.oid === 'AFFE' || msg.iod === 'AFFE';
+          if (isAffe) {
+            this.state.setAffeError();
+            return;
+          }
 
-            // Resolve medium by hardwareId and cache it (best-effort)
-            if (this.sessionToken && this.userId) {
-              void this.queries
-                .findMediumIdByHardware(this.sessionToken, this.userId, hwHex)
-                .then((mediumId) => this.state.setCurrentMediumId(mediumId))
-                .catch(() => {
-                  /* ignore lookup errors */
-                });
+          if (typeof msg.oid === 'string' && msg.oid.length > 0) {
+            try {
+              const oidBuf = Buffer.from(msg.oid + '00', 'hex');
+              const hwHex = createHash('sha256').update(oidBuf).digest('hex');
+              const hwB64 = createHash('sha256')
+                .update(oidBuf)
+                .digest('base64');
+
+              this.state.setHardwareKey(hwHex, hwB64);
+              this.logger.log(`Key ON: hardwareId=${hwHex}`);
+
+              // Best-effort lookup of medium by hardwareId
+              if (this.sessionToken && this.userId) {
+                void this.queries
+                  .findMediumIdByHardware(this.sessionToken, this.userId, hwHex)
+                  .then((mediumId) => {
+                    this.state.setCurrentMediumId(mediumId);
+
+                    if (mediumId) {
+                      this.logger.log(
+                        `Selected mediumId=${mediumId} for hardwareId=${hwHex}`,
+                      );
+                    } else {
+                      this.logger.warn(
+                        `No identification-media matched hardwareId=${hwHex}`,
+                      );
+                    }
+                  })
+                  .catch((e: any) => {
+                    this.logger.error(
+                      `Lookup by hardwareId failed: ${e?.message ?? e}`,
+                    );
+                  });
+              }
+            } catch (err: any) {
+              this.logger.error(
+                `Failed to derive hardwareId from oid='${msg.oid}': ${err.message}`,
+              );
             }
-          } catch {
-            // ignore bad oid
           }
         }
       }
@@ -138,6 +166,29 @@ export class EvvaService implements OnModuleInit {
 
     // Kick off login
     await this.loginWithFallback();
+  }
+
+  private payloadToString(p: any): string {
+    if (p == null) return '';
+    if (Buffer.isBuffer(p)) return p.toString('utf8');
+    if (typeof p === 'string') return p;
+    try {
+      return JSON.stringify(p);
+    } catch {
+      return String(p);
+    }
+  }
+
+  private coerceJson<T = any>(p: any): T | null {
+    try {
+      if (p == null) return null;
+      if (typeof p === 'object' && !Buffer.isBuffer(p)) return p as T;
+      const s = this.payloadToString(p).trim();
+      if (!s) return null;
+      return JSON.parse(s) as T;
+    } catch {
+      return null;
+    }
   }
 
   private async loginWithFallback() {
@@ -160,6 +211,7 @@ export class EvvaService implements OnModuleInit {
     if (!this.sessionToken || !this.userId) {
       throw new Error('Not logged in yet');
     }
+
     return this.queries.queryResource(
       this.sessionToken,
       this.userId,
@@ -316,6 +368,41 @@ export class EvvaService implements OnModuleInit {
       checkIn,
       checkOut,
       profileId,
+    );
+  }
+
+  async addInstallationPointMetadataDefinition(names: string[]) {
+    if (!this.sessionToken) throw new Error('Not logged in yet');
+
+    return this.access.addEntityMetadataDefinition(
+      this.sessionToken,
+      'INSTALLATION_POINT',
+      names,
+    );
+  }
+
+  async changeInstallationPointMetadataValue(
+    installationPointId: string,
+    metadataId: string,
+    value: string,
+  ) {
+    if (!this.sessionToken) throw new Error('Not logged in yet');
+
+    return this.access.changeInstallationPointMetadataValue(
+      this.sessionToken,
+      installationPointId,
+      metadataId,
+      value,
+    );
+  }
+
+  async deleteInstallationPointMetadataDefinitions(names: string[]) {
+    if (!this.sessionToken) throw new Error('Not logged in yet');
+
+    return this.access.deleteEntityMetadataDefinition(
+      this.sessionToken,
+      'INSTALLATION_POINT',
+      names,
     );
   }
 }

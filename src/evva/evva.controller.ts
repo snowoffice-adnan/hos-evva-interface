@@ -66,7 +66,13 @@ export class EvvaController {
   @Get('evva-components')
   async getEvvaComponents() {
     const data = await this.evva.queryResource('evva-components');
-    return ok('success', data);
+    return ok('success', data, { unwrapSingle: false });
+  }
+
+  @Get('installation-points')
+  async getInstallationPoints() {
+    const data = await this.evva.queryResource('installation-points');
+    return ok('success', data, { unwrapSingle: false });
   }
 
   @Get('mss/pending')
@@ -198,5 +204,40 @@ export class EvvaController {
       dto.profileId,
     );
     return ok('success', result);
+  }
+
+  @Post('installation-points/metadata-definitions')
+  async addInstallationPointMetadataDefinitions(
+    @Body('names') names: string[],
+  ) {
+    const res = await this.evva.addInstallationPointMetadataDefinition(names);
+    return ok('Metadata definitions added', res);
+  }
+
+  @Post('installation-points/metadata-value')
+  async setInstallationPointMetadataValue(
+    @Body()
+    body: {
+      installationPointId: string;
+      metadataId: string;
+      value: string;
+    },
+  ) {
+    const res = await this.evva.changeInstallationPointMetadataValue(
+      body.installationPointId,
+      body.metadataId,
+      body.value,
+    );
+
+    return ok('Metadata value changed', res);
+  }
+
+  @Post('installation-points/metadata-definitions/delete')
+  async deleteInstallationPointMetadataDefinitions(
+    @Body('names') names: string[],
+  ) {
+    const res =
+      await this.evva.deleteInstallationPointMetadataDefinitions(names);
+    return ok('Metadata definitions deleted', res);
   }
 }

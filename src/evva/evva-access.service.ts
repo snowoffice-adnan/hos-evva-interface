@@ -7,6 +7,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { MqttService } from '../mqtt/mqtt.service';
 import { EvvaQueryService } from './evva-query.service';
 
+type EntityType =
+  | 'PERSON'
+  | 'IDENTIFICATION_MEDIUM'
+  | 'ZONE'
+  | 'INSTALLATION_POINT'
+  | 'AUTHORIZATION_PROFILE';
+
 @Injectable()
 export class EvvaAccessService {
   private readonly logger = new Logger(EvvaAccessService.name);
@@ -329,5 +336,138 @@ export class EvvaAccessService {
         assign,
       },
     };
+  }
+
+  async addEntityMetadataDefinition(
+    sessionToken: string,
+    entityType: EntityType,
+    names: string[],
+  ) {
+    if (!sessionToken) throw new Error('Not logged in yet');
+
+    const commandId = uuidv4();
+    const payload = {
+      commandId,
+      entityType,
+      names,
+      token: sessionToken,
+    };
+
+    this.logger.log(
+      `PUB AddEntityMetadataDefinitionMapi entityType=${entityType} names=${names.join(
+        ',',
+      )}`,
+    );
+
+    try {
+      await this.mqtt.publish(
+        'xs3/1/cmd/AddEntityMetadataDefinitionMapi',
+        payload,
+      );
+
+      return {
+        command: 'AddEntityMetadataDefinitionMapi',
+        commandId,
+        payload,
+      };
+    } catch (e: any) {
+      return {
+        command: 'AddEntityMetadataDefinitionMapi',
+        commandId,
+        payload,
+        status: 'error',
+        error: e?.message ?? String(e),
+      };
+    }
+  }
+
+  async changeInstallationPointMetadataValue(
+    sessionToken: string,
+    installationPointId: string,
+    metadataId: string,
+    value: string,
+  ) {
+    if (!sessionToken) throw new Error('Not logged in yet');
+
+    const commandId = uuidv4();
+    const payload = {
+      commandId,
+      id: installationPointId,
+      metadataId,
+      token: sessionToken,
+      value,
+    };
+
+    this.logger.log(
+      `PUB ChangeInstallationPointMetadataValueMapi id=${installationPointId} metadataId=${metadataId} value=${value}`,
+    );
+
+    try {
+      await this.mqtt.publish(
+        'xs3/1/cmd/ChangeInstallationPointMetadataValueMapi',
+        payload,
+      );
+
+      return {
+        command: 'ChangeInstallationPointMetadataValueMapi',
+        commandId,
+        payload,
+      };
+    } catch (e: any) {
+      return {
+        command: 'ChangeInstallationPointMetadataValueMapi',
+        commandId,
+        payload,
+        status: 'error',
+        error: e?.message ?? String(e),
+      };
+    }
+  }
+
+  async deleteEntityMetadataDefinition(
+    sessionToken: string,
+    entityType:
+      | 'PERSON'
+      | 'IDENTIFICATION_MEDIUM'
+      | 'ZONE'
+      | 'INSTALLATION_POINT'
+      | 'AUTHORIZATION_PROFILE',
+    names: string[],
+  ) {
+    if (!sessionToken) throw new Error('Not logged in yet');
+
+    const commandId = uuidv4();
+    const payload = {
+      commandId,
+      entityType,
+      names,
+      token: sessionToken,
+    };
+
+    this.logger.log(
+      `PUB DeleteEntityMetadataDefinitionMapi entityType=${entityType} names=${names.join(
+        ',',
+      )}`,
+    );
+
+    try {
+      await this.mqtt.publish(
+        'xs3/1/cmd/DeleteEntityMetadataDefinitionMapi',
+        payload,
+      );
+      return {
+        command: 'DeleteEntityMetadataDefinitionMapi',
+        commandId,
+        payload,
+      };
+    } catch (e: any) {
+      return {
+        command: 'DeleteEntityMetadataDefinitionMapi',
+        commandId,
+        payload,
+        status: 'error',
+        error: e?.message ?? String(e),
+      };
+    }
   }
 }
