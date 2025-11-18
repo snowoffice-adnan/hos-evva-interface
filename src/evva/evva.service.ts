@@ -371,38 +371,116 @@ export class EvvaService implements OnModuleInit {
     );
   }
 
-  async addInstallationPointMetadataDefinition(names: string[]) {
-    if (!this.sessionToken) throw new Error('Not logged in yet');
-
-    return this.access.addEntityMetadataDefinition(
-      this.sessionToken,
-      'INSTALLATION_POINT',
-      names,
-    );
-  }
-
-  async changeInstallationPointMetadataValue(
-    installationPointId: string,
-    metadataId: string,
-    value: string,
+  async getInstallationPointsByAuthorizationProfile(
+    authorizationProfileId: string,
   ) {
-    if (!this.sessionToken) throw new Error('Not logged in yet');
+    if (!this.sessionToken || !this.userId) {
+      throw new ServiceUnavailableException('Not logged in yet');
+    }
 
-    return this.access.changeInstallationPointMetadataValue(
-      this.sessionToken,
-      installationPointId,
-      metadataId,
-      value,
+    //
+    // 1) Load authorization profile → get installationPointIds
+    //
+    const profileRes = await this.queryResource('authorization-profiles', {
+      filters: [
+        { field: 'id', type: 'eq', op: 'eq', value: authorizationProfileId },
+      ],
+      pageLimit: 1,
+    });
+
+    const profile = profileRes?.data?.[0];
+    const installationPointIds: string[] =
+      profile?.installationPoints?.map((p: any) => p.id) ?? [];
+
+    //
+    // 2) Load installation points and filter by profile’s installationPointIds
+    //
+    const ipRes = await this.queryResource('installation-points', {
+      pageLimit: 500,
+    });
+
+    const allIps: any[] = Array.isArray(ipRes?.data) ? ipRes.data : [];
+    const installationPoints = allIps.filter((ip) =>
+      installationPointIds.includes(ip.id),
     );
-  }
 
-  async deleteInstallationPointMetadataDefinitions(names: string[]) {
-    if (!this.sessionToken) throw new Error('Not logged in yet');
+    if (!installationPoints.length) {
+      return [];
+    }
 
-    return this.access.deleteEntityMetadataDefinition(
-      this.sessionToken,
-      'INSTALLATION_POINT',
-      names,
+    //
+    // 3) Load identification-media FILTERED by authorizationProfileId
+    //
+    const mediaRes = await this.queryResource('identification-media', {
+      filters: [
+        {
+          type: 'eq',
+          field: 'authorizationProfileId',
+          value: authorizationProfileId,
+        },
+      ],
+      pageLimit: 200,
+    });
+
+    const media: any[] = Array.isArray(mediaRes?.data) ? mediaRes.data : [];
+
+    if (!media.length) {
+      this.logger.warn(
+        `No identification-media with authorizationProfileId=${authorizationProfileId} found`,
+      );
+
+      // We can still return the installationPoints, just without bleMac
+      return installationPoints.map((ip) => ({
+        ...ip,
+        bleMac: null,
+      }));
+    }
+
+    const medium = media[0];
+
+    this.logger.debug(
+      `Using medium id=${medium.id} label=${medium.label} for authorizationProfileId=${authorizationProfileId}`,
     );
+
+    const xsMediumId: string =
+      medium.xsMediumId ?? medium.id ?? medium.mediumIdentifier?.toString();
+
+    if (!xsMediumId) {
+      this.logger.warn(
+        `Medium ${medium.id ?? medium.label} does not expose xsMediumId/id; cannot resolve bleMac`,
+      );
+      return installationPoints.map((ip) => ({
+        ...ip,
+        bleMac: null,
+      }));
+    }
+
+    //
+    // 4) Load identification-media-access-data and find row by xsMediumId
+    //
+    const accessRes = await this.queryResource(
+      'identification-media-access-data',
+      { pageLimit: 500 },
+    );
+
+    const rows: any[] = Array.isArray(accessRes?.data) ? accessRes.data : [];
+
+    const row = rows.find(
+      (r) =>
+        r?.identificationMedium?.xsMediumId === xsMediumId ||
+        r?.identificationMedium?.id === xsMediumId ||
+        r?.identificationMedium?.mediumIdentifier?.toString() === xsMediumId,
+    );
+
+    const bleMac: string | null =
+      row?.identificationMedium?.metadata?.accessPoints?.[0]?.bleMac ?? null;
+
+    //
+    // 5) Attach bleMac to each installationPoint and return plain array
+    //
+    return installationPoints.map((ip) => ({
+      ...ip,
+      bleMac,
+    }));
   }
 }

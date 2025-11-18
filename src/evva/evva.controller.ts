@@ -206,38 +206,13 @@ export class EvvaController {
     return ok('success', result);
   }
 
-  @Post('installation-points/metadata-definitions')
-  async addInstallationPointMetadataDefinitions(
-    @Body('names') names: string[],
+  @Get('authorization-profiles/:authorizationProfileId/installation-points')
+  async getInstallationPointsByAuthorizationProfile(
+    @Param('authorizationProfileId') authorizationProfileId: string,
   ) {
-    const res = await this.evva.addInstallationPointMetadataDefinition(names);
-    return ok('Metadata definitions added', res);
-  }
-
-  @Post('installation-points/metadata-value')
-  async setInstallationPointMetadataValue(
-    @Body()
-    body: {
-      installationPointId: string;
-      metadataId: string;
-      value: string;
-    },
-  ) {
-    const res = await this.evva.changeInstallationPointMetadataValue(
-      body.installationPointId,
-      body.metadataId,
-      body.value,
+    const data = await this.evva.getInstallationPointsByAuthorizationProfile(
+      authorizationProfileId,
     );
-
-    return ok('Metadata value changed', res);
-  }
-
-  @Post('installation-points/metadata-definitions/delete')
-  async deleteInstallationPointMetadataDefinitions(
-    @Body('names') names: string[],
-  ) {
-    const res =
-      await this.evva.deleteInstallationPointMetadataDefinitions(names);
-    return ok('Metadata definitions deleted', res);
+    return ok('success', data, { unwrapSingle: false });
   }
 }
